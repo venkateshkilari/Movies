@@ -1,0 +1,401 @@
+﻿@using Newtonsoft.Json;
+@{
+    ViewData["Title"] = "Movies List";
+
+}
+@model MoviesViewModel
+
+    <script src="http://code.jquery.com/jquery-2.0.3.min.js"></script>
+
+    <script src="~/lib/knockout-3.4.2.js" type="text/javascript"></script>
+    <script src="http://knockoutjs.com/examples/resources/knockout.simpleGrid.3.0.js"></script>
+    <script src="~/lib/knockout.mapping-latest.js" type="text/javascript"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+    <style type="text/css">
+        #AddMovie {
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        @@media screen and (min-width: 768px) {
+            .modal-dialog {
+                left: auto;
+            }
+            .modal-backdrop{
+                background-color:transparent;
+            }
+        }
+    </style>
+<h1>List of Movies</h1>
+    <div class="row" style="margin-top:10px;">
+        <div class="col-lg-2" style="float:right;">
+
+            <button id="addButton" class="btn btn-success" type="button" onclick="AddMovie()"> Add</button>
+            <button id="saveButton" class="btn btn-success pull-right" type="button" onclick="AddMovieToList()" style="visibility:hidden"> Save</button>
+        </div>
+    </div>
+    <div class="row" id="AddMovie" style="display:none;">
+        <div class="col-lg-6">
+            <input class="form-control" id="add_moviename" type="text" placeholder="Enter Movie Name" /><br />
+            <div class="col-lg-8" style="padding-left:0px">
+                <select class="form-control" id="add_producers" data-bind="options:producers(),optionsText:function(item){return item.text()},optionsValue:function(item){return item.id()},value:selectedProducer"></select>
+            </div>
+            <a href="#" data-toggle="modal" data-target="#addProducerModal">Add new producer</a>
+        </div>
+        <div class="col-lg-6">
+
+            <input class="form-control" id="add_releaseYear" type="number" min="1900" max="2099" placeholder="Enter Release Year in YYYY Format,Example:2016" /><br />
+            <div class="col-lg-8" style="padding-left:0px">
+                <select class="form-control" multiple="multiple" id="add_actors" data-bind="options:actors(),optionsText:function(item){return item.text()},optionsValue:function(item){return item.id()},selectedOptions :selectedActor"></select>
+            </div>
+            <a href="#" data-toggle="modal" data-target="#addActorModal">Add new actor</a>
+
+        </div>
+        <br />
+
+
+    </div>
+    <div class="row">
+        <table id="user" class="table table-bordered table-striped" style="clear: both;">
+            <thead>
+                <tr>
+                    <th>
+                        Name
+                    </th>
+                    <th>Year of Release</th>
+                    <th>Producer</th>
+                    <th>Actors</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody data-bind="foreach:items">
+
+                <tr>
+                    <td width="20%">
+                        <span class="textDisplay" data-bind="text:Name,attr: {name:'display_'+$index()}"></span>
+                        <span data-bind="attr: {name:'input_'+$index()}" style="display:none">
+                            <input class="form-control" type="text" data-bind="value:Name,attr:{id:'movieName_'+$index()}" />
+                        </span>
+
+                    </td>
+                    <td width="20%">
+                        <span data-bind="text:ReleaseYear,attr: {name:'display_'+$index()}"></span>
+                        <span data-bind="attr: {name:'input_'+$index()}" style="display:none">
+                            <input class="form-control" type="number" min="1900" max="2099" data-bind="value:ReleaseYear,attr:{id:'releaseYear_'+$index()}" />
+                        </span>
+                    </td>
+                    <td width="20%">
+                        <span data-bind="text:$root.getSelectedProducerName(SelectedProducerOfMovie()),attr: {name:'display_'+$index()}"></span>
+                        <span data-bind="attr: {name:'input_'+$index()}" style="display:none">
+                            <select class="form-control" data-bind="options:$root.producers(),optionsText:'text',optionsValue:'id',value:SelectedProducerOfMovie,attr:{id:'producer_'+$index()}"></select>
+                        </span>
+                    </td>
+
+                    <td width="20%">
+                        <ul data-bind="foreach:SelectedActors,attr: {name:'display_'+$index()}">
+                            <li data-bind="text:$root.getSelectedActorName($data)"></li>
+                        </ul>
+                        <span data-bind="attr: {name:'input_'+$index()}" style="display:none">
+                            <select class="form-control" multiple="multiple" data-bind="options:$root.actors(),optionsText:'Name',optionsValue:'id',selectedOptions:SelectedActors,attr:{id:'actors_'+$index()}"></select>
+                        </span>
+                    </td>
+                    <td width="20%">
+                        <span data-bind="attr: {name:'display_'+$index()}">
+                            <button class="btn btn-success" type="button" data-bind="attr: {rowId:$index(),id:'editButton_'+$index()}" onclick="editMovie(this)"> Edit</button>
+                        </span>
+                        <span data-bind="attr: {name:'input_'+$index()}" style="display:none">
+                            <button class="btn btn-success" type="button" data-bind="attr: {rowId:$index(),recordId:id,id:'updateButton_'+$index()}" onclick="updateMovie(this)"> Update</button>
+                        </span>
+                    </td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+    <div class="modal" id="addProducerModal">
+        <div class="modal-dialog center-block">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input class="form-control" id="add_producerName" type="text" placeholder="Enter Producer Name" /><br />
+                    <select class="form-control" id="add_producerSex">
+                        <option value="M">Male</option>
+                        <option value="F">Female</option>
+                        <option value="O">Others</option>
+                    </select><br />
+                    <label for="add_producerDOB">Date of Birth</label><input class="form-control" id="add_producerDOB" type="date" placeholder="Enter Movie Name" /><br />
+                    <textarea class="form-control" id="add_producerBio" type="" placeholder="Biography of Producer"></textarea><br />
+                </div>
+
+                <!-- Modal footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" onclick="AddProducer()">Add</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="addActorModal">
+        <div class="modal-dialog center-block">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input class="form-control" id="add_actorName" type="text" placeholder="Enter Actor Name" /><br />
+                    <select class="form-control" id="add_actorSex">
+                        <option value="M">Male</option>
+                        <option value="F">Female</option>
+                        <option value="O">Others</option>
+                    </select><br />
+                    <label for="add_actorDOB">Date of Birth</label><input class="form-control" id="add_actorDOB" type="date" placeholder="Enter Movie Name" /><br />
+                    <textarea class="form-control" id="add_actorBio" type="" placeholder="Biography of Actor"></textarea><br />
+                </div>
+
+                <!-- Modal footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" onclick="AddActor()">Add</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <script type="text/javascript">
+
+
+
+
+    var data = '@Html.Raw(JsonConvert.SerializeObject(Model))';
+
+    var GridModel = function (items) {
+
+        this.items = items.MoviesList;
+        this.getData = function () { return ko.toJSON(this.items) }
+
+        this.actors = ko.observableArray(items.Actors());
+        this.producers = items.Producers;
+        this.selectedProducer = ko.observable();
+        this.selectedActor = ko.observableArray();
+        this.getSelectedProducerName = function (id) {
+            var name = "";
+            for (index in this.producers()) {
+                if (this.producers()[index].id() == id) {
+                    name = this.producers()[index].text();
+                }
+            }
+
+            return name;
+
+        };
+        this.getSelectedActorName = function (id) {
+            var name = "";
+            for (index in this.actors()) {
+                if (this.actors()[index].id() == id) {
+                    name = this.actors()[index].text();
+                }
+            }
+
+            return name;
+
+        }
+
+
+
+    }
+    var viewModal = new GridModel(ko.mapping.fromJS(JSON.parse(data)));
+
+
+    viewModal.getSelectedActors = ko.pureComputed(function () {
+
+        var actorsDetails = [];
+        for (actorIndex in this.selectedActor()) {
+            for (index in this.actors()) {
+                if (this.actors()[index].id() == this.selectedActor()[actorIndex]) {
+                    actorsDetails.push({ Name: this.actors()[index].text(), id: this.actors()[index].id(), text: this.actors()[index].text() });
+                }
+            }
+        }
+        return actorsDetails;
+    }, viewModal);
+    viewModal.getSelectedProducers = ko.pureComputed(function () {
+        var id = this.selectedProducer()
+        var producer;
+        for (index in this.producers()) {
+            if (this.producers()[index].id() == id) {
+
+                producer = { Name: this.producers()[index].text(), id: this.producers()[index].id(), text: this.producers()[index].text() };
+
+            }
+        }
+
+        return producer;
+    }, viewModal);
+    ko.applyBindings(viewModal);
+
+
+    function AddMovie()
+    {
+
+        $('#AddMovie').attr("style", "display:block");
+        $('#addButton').attr("style", "visibility:hidden")
+        $('#editButton').attr("style", "visibility:hidden")
+        $('#saveButton').removeAttr("style")
+
+    }
+    function AddProducer() {
+        if ($('#add_producerName').val() == undefined || $('#add_producerName').val() == "" || $('#add_producerName').val().trim() == "") {
+            alert("Enter Producer Name");
+
+        }
+        else if ($('#add_producerSex').val() == undefined || $('#add_producerSex').val() == "") {
+            alert("Enter Sex");
+
+        }
+        else if ($('#add_producerDOB').val() == undefined || $('#add_producerDOB').val() == "") {
+            alert("Select producer for the movie");
+
+        }
+        else if (new Date($('#add_producerDOB').val()).getFullYear() > new Date().getFullYear() || (new Date($('#add_producerDOB').val()).getFullYear() == new Date().getFullYear()) && (new Date($('#add_producerDOB').val()).getMonth() > new Date().getMonth()) || (new Date($('#add_producerDOB').val()).getFullYear() == new Date().getFullYear()) && (new Date($('#add_producerDOB').val()).getMonth() == new Date().getMonth()) && (new Date($('#add_producerDOB').val()).getDate() > new Date().getDate())) {
+
+            alert("Date of birth can't be greater than today");
+        }
+        else {
+            $.ajax({
+                url: "/Movie/InsertProducer",
+                type: "POST",
+                data: { name: $('#add_producerName').val(), sex: $('#add_producerSex').val(), dob: $('#add_producerDOB').val(), bio: $('#add_producerBio').val() },
+                success: function (producerId) {
+
+                    viewModal.producers.push({ Name: ko.observable($('#add_producerName').val()), text: ko.observable($('#add_producerName').val()), id: ko.observable(producerId) });
+                    $('#addProducerModal').modal('toggle')
+                }
+
+
+            });
+        }
+
+    }
+    function AddActor() {
+        if ($('#add_actorName').val() == undefined || $('#add_actorName').val() == "" || $('#add_actorName').val().trim() == "") {
+            alert("Enter Actor Name");
+
+        }
+        else if ($('#add_actorSex').val() == undefined || $('#add_actorSex').val() == "" ) {
+            alert("Enter Sex");
+
+        }
+        else if ($('#add_actorDOB').val() == undefined || $('#add_actorDOB').val() == "") {
+            alert("Select actor for the movie");
+
+        }
+        else if (new Date($('#add_actorDOB').val()).getFullYear() > new Date().getFullYear() || (new Date($('#add_actorDOB').val()).getFullYear() == new Date().getFullYear()) && (new Date($('#add_actorDOB').val()).getMonth() >new Date().getMonth()) || (new Date($('#add_actorDOB').val()).getFullYear() == new Date().getFullYear()) && (new Date($('#add_actorDOB').val()).getMonth() == new Date().getMonth()) && (new Date($('#add_actorDOB').val()).getDate() > new Date().getDate()))
+        {
+
+            alert("Date of birth can't be greater than today");
+        }
+        else {
+            $.ajax({
+                url: "/Movie/InsertActor",
+                type: "POST",
+                data: { name: $('#add_actorName').val(), sex: $('#add_actorSex').val(), dob: $('#add_actorDOB').val(), bio: $('#add_actorBio').val() },
+                success: function (actorId) {
+
+                    viewModal.actors.push({ id: ko.observable(actorId), Name: ko.observable($('#add_actorName').val()), text: ko.observable($('#add_actorName').val()), Sex: $('#add_actorSex').val(), DOB: $('#add_actorDOB').val(), Biography: $('#add_actorBio').val() });
+                    $('#addActorModal').modal('toggle')
+
+                }
+
+
+            });
+        }
+    }
+
+    function AddMovieToList() {
+        if ($('#add_moviename').val() == undefined || $('#add_moviename').val() == "" || $('#add_moviename').val().trim() == "") {
+            alert("Enter Movie Name");
+
+        }
+        else if ($('#add_releaseYear').val() == undefined || $('#add_releaseYear').val() == "" || $('#add_releaseYear').val().trim() == "")
+        {
+            alert("Enter Release Year");
+
+        }
+        else if ($('#add_producers').val() == undefined || $('#add_producers').val() == "" ) {
+            alert("Select producer for the movie");
+
+        }
+        else if ($('#add_actors').val() == undefined || $('#add_actors').val() == "" ) {
+            alert("Select atleast one actor for the movie");
+
+        }
+        else if ($('#add_releaseYear').val() < 1900 || $('#add_releaseYear').val() > 9999)
+        {
+            alert("Enter valid year.We accept values between 1900 and 9999");
+
+        }
+        else {
+            $.ajax({
+                url: "/Movie/InsertMovie",
+                type: "POST",
+                data: { name: $('#add_moviename').val(), year: $('#add_releaseYear').val(), producerId: $('#add_producers').val(), actorIds: $('#add_actors').val() },
+                success: function (movieId) {
+
+                    viewModal.items.push({ id: movieId, Name: $('#add_moviename').val(), ReleaseYear: $('#add_releaseYear').val(), Producer: viewModal.getSelectedProducers(), Actors: viewModal.getSelectedActors(), SelectedActors: viewModal.selectedActor(), SelectedProducerOfMovie: ko.observable(viewModal.selectedProducer()) });
+
+
+                }
+
+
+            });
+
+            $('#AddMovie').attr("style", "display:none");
+            $('#saveButton').attr("style", "visibility:hidden");
+            $('#addButton').removeAttr("style");
+            $('#editButton').removeAttr("style");
+        }
+    }
+
+    function editMovie(row) {
+        var rowId = $(row).attr("rowid");
+        $("span[name='display_" + rowId+"']").css('display', 'none')
+        $("ul[name='display_" + rowId + "']").css('display', 'none')
+        $("span[name='input_" + rowId + "']").css('display', 'block')
+        $("ul[name='input_" + rowId + "']").css('display', 'block')
+
+
+    }
+
+    function updateMovie(row) {
+
+        var rowId = $(row).attr("rowid");
+
+        $.ajax({
+            url: "/Movie/UpdateMovie",
+            type: "POST",
+            data: { id: $(row).attr("recordId"), name: $('#movieName_' + rowId).val(), year: $('#releaseYear_' + rowId).val(), producerId: $('#producer_' + rowId).val(), actorIds: $('#actors_'+rowId).val() },
+            success: function (data) {
+
+
+
+
+            }
+
+
+        });
+        $("span[name='input_" + rowId + "']").css('display', 'none')
+        $("ul[name='input_" + rowId + "']").css('display', 'none')
+        $("span[name='display_" + rowId + "']").css('display', 'block')
+        $("ul[name='display_" + rowId + "']").css('display', 'block')
+
+
+    }
+    </script>
